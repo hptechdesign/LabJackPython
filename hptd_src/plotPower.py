@@ -29,18 +29,23 @@ win.resize(1000, 600)
 win.setWindowTitle('Real-time Power Measurements')
 win.show()
 pg.setConfigOptions(antialias=True)
-voltage_plot = win.addPlot(title="Voltage")
+# Add the three plots to the grid layout
+voltage_plot = win.addPlot(row=0, col=0, title="Voltage")
 voltage_plot.setRange(xRange=[0, duration], yRange=[-10, 10])
 voltage_plot.setLabel('bottom', 'Time (s)')
 voltage_plot.setLabel('left', 'Voltage (V)')
-current_plot = win.addPlot(title="Current")
+
+current_plot = win.addPlot(row=1, col=0, title="Current")
 current_plot.setRange(xRange=[0, duration], yRange=[-0.1, 0.1])
 current_plot.setLabel('bottom', 'Time (s)')
 current_plot.setLabel('left', 'Current (A)')
-power_plot = win.addPlot(title="Power")
+
+power_plot = win.addPlot(row=2, col=0, title="Power")
 power_plot.setRange(xRange=[0, duration], yRange=[-1, 1])
 power_plot.setLabel('bottom', 'Time (s)')
 power_plot.setLabel('left', 'Power (W)')
+
+# Initialize the plot curves
 voltage_curve = voltage_plot.plot(pen='r')
 current_curve = current_plot.plot(pen='g')
 power_curve = power_plot.plot(pen='b')
