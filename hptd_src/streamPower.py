@@ -12,9 +12,8 @@ import sys
 import traceback
 from datetime import datetime
 
-import u3
+
 import u6
-import ue9
 
 
 # MAX_REQUESTS is the number of packets to be read.
@@ -24,27 +23,6 @@ SCAN_FREQUENCY = 100
 
 d = None
 
-###############################################################################
-# U3
-# Uncomment these lines to stream from a U3
-###############################################################################
-'''
-# At high frequencies ( >5 kHz), the number of samples will be MAX_REQUESTS
-# times 48 (packets per request) times 25 (samples per packet).
-d = u3.U3()
-
-# To learn the if the U3 is an HV
-d.configU3()
-
-# For applying the proper calibration to readings.
-d.getCalibrationData()
-
-# Set the FIO0 and FIO1 to Analog (d3 = b00000011)
-d.configIO(FIOAnalog=3)
-
-print("Configuring U3 stream")
-d.streamConfig(NumChannels=2, PChannels=[0, 1], NChannels=[31, 31], Resolution=3, ScanFrequency=SCAN_FREQUENCY)
-'''
 
 ###############################################################################
 # U6
@@ -63,25 +41,6 @@ print("Configuring U6 stream")
 d.streamConfig(NumChannels=4, ChannelNumbers=[0, 1, 2, 3], ChannelOptions=[0, 0, 0, 0], SettlingFactor=1, ResolutionIndex=1, ScanFrequency=SCAN_FREQUENCY)
 
 
-###############################################################################
-# UE9
-# Uncomment these lines to stream from a UE9
-###############################################################################
-'''
-# At 96 Hz or higher frequencies, the number of samples will be MAX_REQUESTS
-# times 8 (packets per request) times 16 (samples per packet).
-# Currently over ethernet packets per request is 1.
-d = ue9.UE9()
-#d = ue9.UE9(ethernet=True, ipAddress="192.168.1.209")  # Over TCP/ethernet connect to UE9 with IP address 192.168.1.209
-
-# For applying the proper calibration to readings.
-d.getCalibrationData()
-
-print("Configuring UE9 stream")
-
-d.streamConfig(NumChannels=2, ChannelNumbers=[0, 1], ChannelOptions=[0, 0], SettlingTime=0, Resolution=12, ScanFrequency=SCAN_FREQUENCY)
-'''
-
 if d is None:
     print("""Configure a device first.
 Please open streamTest.py in a text editor and uncomment the lines for your device.
@@ -98,7 +57,7 @@ try:
     missed = 0
     dataCount = 0
     packetCount = 0
-
+    iter=0
     for r in d.streamData():
         if r is not None:
             # Our stop condition
@@ -117,9 +76,27 @@ try:
                 print("+++ Missed %s" % r["missed"])
 
             # Comment out these prints and do something with r
-            print("Average of %s AIN0, %s AIN1 readings: %s, %s" %
-                  (len(r["AIN0"]), len(r["AIN1"]), sum(r["AIN0"])/len(r["AIN0"]), sum(r["AIN1"])/len(r["AIN1"])))
+           # print("Average of %s AIN0, %s AIN1, %s AIN2, %s AIN3 readings: " %
+            #      (len(r["AIN0"]), len(r["AIN1"]),len(r["AIN2"]), len(r["AIN3"])))
+ 
+            #print("%s, %s, %s, %s " % (sum(r["AIN0"])/len(r["AIN0"]), (sum(r["AIN1"])/len(r["AIN1"])),(sum(r["AIN2"])/len(r["AIN2"])),(sum(r["AIN3"])/len(r["AIN3"]))))
+            V = sum(r["AIN0"])/len(r["AIN0"]) - (sum(r["AIN1"])/len(r["AIN1"]))
+            I = (sum(r["AIN1"])/len(r["AIN1"]) - (sum(r["AIN2"])/len(r["AIN2"])))*0.2
+            P = V*I
+            iter+=1
+            if iter==1:
+                Vavg = V
+                Iavg = I
+                Pavg = P
+            else:
+                Vavg+=V
+                Iavg+=I
+                Pavg+=P
+                Vavg/=2
+                Iavg/=2
+                Pavg/=2
 
+            print ("V=%.4f V,\tI= %.0f mA,\t=> P = %.0f mW" % (Vavg, Iavg*1000, Pavg*1000), end='\r')
             dataCount += 1
             packetCount += r['numPackets']
         else:
@@ -130,6 +107,7 @@ try:
 except:
     print("".join(i for i in traceback.format_exc()))
 finally:
+    print("")
     stop = datetime.now()
     d.streamStop()
     print("Stream stopped.\n")
@@ -145,7 +123,7 @@ finally:
     print("Adjusted number of samples = %s" % sampleTotal)
 
     runTime = (stop-start).seconds + float((stop-start).microseconds)/1000000
-    print("The experiment took %s seconds." % runTime)
+    print("The aquisition took %s seconds." % runTime)
     print("Actual Scan Rate = %s Hz" % SCAN_FREQUENCY)
     print("Timed Scan Rate = %s scans / %s seconds = %s Hz" %
           (scanTotal, runTime, float(scanTotal)/runTime))
